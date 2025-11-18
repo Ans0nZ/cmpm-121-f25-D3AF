@@ -10,3 +10,55 @@
   - [ x] `./style.css`
   - [x ] `./_leafletWorkaround.ts`
   - [x ] `./_luck.ts`
+ - [ ] Create basic layout elements in `main.ts`:
+  - [ ] A `#map` container that fills most of the screen
+  - [ ] A small status HUD showing the token in the player’s hand
+- [ ] Initialize a Leaflet map centered on the classroom location with a reasonable zoom level
+- [ ] Define a grid cell size (e.g., `CELL_SIZE_DEG = 0.0001`) and helper functions:
+  - [ ] `latLngToCellIndex(lat, lng)` → `{row, col}`
+  - [ ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
+  - [ ] `cellId(cell)` → string used as the situation key for `luck`
+- [ ] Compute the player’s current cell index from the fixed classroom location
+- [ ] Render a square region of cells around the player (e.g., 40×40 cells) as rectangles on the map
+- [ ] For each rendered cell, use `luck(cellId)` (plus a seed string) to decide:
+  - [ ] whether it has an initial token
+  - [ ] the initial token value (for D3.a, probably always `1`)
+- [ ] Store each cell’s state in an in-memory data structure:
+  - [ ] `CellState` type: `{ index, tokenValue, marker? }`
+  - [ ] `cellStates` collection that can be looked up by `cellId`
+- [ ] Make sure that the initial state of a cell is consistent across page loads:
+  - [ ] do not call `Math.random()` for spawning
+  - [ ] only use `luck(seed + cellId)` for initial tokens
+- [ ] Add a `PlayerState` structure:
+  - [ ] fixed `lat/lng` for the classroom
+  - [ ] `tokenInHand: number | null`
+- [ ] Implement a helper `canInteractWithCell(cellIndex)`:
+  - [ ] convert player lat/lng to a cell index
+  - [ ] allow interaction only if the distance in cells is within a small radius (e.g., 3 cells)
+- [ ] Add a HUD element that clearly shows:
+  - [ ] whether the player is holding a token
+  - [ ] what the current token value is (if any)
+- [ ] Attach a click handler to each cell rectangle:
+  - [ ] If the cell is too far away, ignore or show a message
+  - [ ] If the player’s hand is empty and the cell has a token → pick up:
+    - [ ] move token value into `PlayerState.tokenInHand`
+    - [ ] set `cell.tokenValue = null`
+    - [ ] update the cell’s visual marker
+    - [ ] update the HUD
+  - [ ] If the player’s hand has a token and the cell is empty → place:
+    - [ ] set `cell.tokenValue = tokenInHand`
+    - [ ] set `tokenInHand = null`
+    - [ ] update the cell’s visual marker and HUD
+  - [ ] If the player’s hand has a token and the cell has a token of equal value → combine:
+    - [ ] set `cell.tokenValue = cell.tokenValue * 2`
+    - [ ] set `tokenInHand = null`
+    - [ ] update visuals and HUD
+  - [ ] In all other cases, do nothing or show a “cannot combine” message
+- [ ] Choose a temporary win threshold for D3.a (e.g., token value 8 or 16)
+- [ ] On every combine or placement, check for the win condition:
+  - [ ] If the player’s hand or any cell has a token ≥ threshold, show a simple win message
+- [ ] Do a quick usability pass:
+  - [ ] ensure tokens are visible without clicking (e.g., number text in each cell)
+  - [ ] check that the player can only interact with nearby cells
+  - [ ] verify that after reloading the page, the initial cell layout is consistent
+- [ ] Update this PLAN.md to mark completed items and add any new steps discovered during D3.a
