@@ -1,18 +1,17 @@
 ## D3.a: Core mechanics (token collection and crafting)
 
-
 ### Steps
 
 - [x ] Copy the starter `main.ts` into `reference.ts` so I can refer back to the Leaflet + luck example
 - [ x] Clear out `src/main.ts` (start D3.a from a fresh file)
-- [x ]  Re-add the basic imports to `main.ts`:
+- [x ] Re-add the basic imports to `main.ts`:
   - [ x] `leaflet` and its CSS
   - [ x] `./style.css`
   - [x ] `./_leafletWorkaround.ts`
   - [x ] `./_luck.ts`
- - [x ] Create basic layout elements in `main.ts`:
-  - [x ] A `#map` container that fills most of the screen
-  - [x ] A small status HUD showing the token in the player’s hand
+- [x ] Create basic layout elements in `main.ts`:
+- [x ] A `#map` container that fills most of the screen
+- [x ] A small status HUD showing the token in the player’s hand
 - [x ] Initialize a Leaflet map centered on the classroom location with a reasonable zoom level
 - [x ] Define a grid cell size (e.g., `CELL_SIZE_DEG = 0.0001`) and helper functions:
   - [x ] `latLngToCellIndex(lat, lng)` → `{row, col}`
