@@ -8,7 +8,7 @@ import "./style.css";
 import "./_leafletWorkaround.ts";
 
 // （之后会用到的运气函数，先导入着）
-//import luck from "./_luck.ts";
+import luck from "./_luck.ts";
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
@@ -71,12 +71,12 @@ function latLngToCellIndex(lat: number, lng: number): CellIndex {
 }
 
 // cell index -> 这个 cell 的地理边界（左下 & 右上）
-function cellIndexToBounds(cell: CellIndex): L.LatLngBounds {
+function cellIndexToBounds(cell: CellIndex): leaflet.LatLngBounds {
   const minLat = cell.row * CELL_SIZE_DEG;
   const minLng = cell.col * CELL_SIZE_DEG;
   const maxLat = minLat + CELL_SIZE_DEG;
   const maxLng = minLng + CELL_SIZE_DEG;
-  return L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+  return leaflet.latLngBounds([minLat, minLng], [maxLat, maxLng]);
 }
 
 // 玩家所在的 cell
@@ -97,17 +97,70 @@ function drawGridAroundPlayer() {
       };
 
       const bounds = cellIndexToBounds(cell);
+      const id = cellId(cell);
 
-      // 画一个透明填充的矩形，只要边框
-      const rect = L.rectangle(bounds, {
+      // 如果之前已经有这个 cell 的状态，就复用；否则创建新的初始状态
+      let state = cellStateById.get(id);
+      if (!state) {
+        const tokenValue = initialTokenValueForCell(cell);
+        state = { index: cell, tokenValue };
+        cellStateById.set(id, state);
+      }
+
+      // 画 cell 的矩形边框
+      const rect = leaflet.rectangle(bounds, {
         weight: 1,
         color: "#666", // 边框颜色
         fillOpacity: 0, // 不填充
       });
 
       rect.addTo(map);
+
+      // 如果这个 cell 有 token，就在中心画一个数字
+      if (state.tokenValue !== null) {
+        const center = bounds.getCenter();
+
+        const icon = leaflet.divIcon({
+          className: "token-icon",
+          html: `<span>${state.tokenValue}</span>`,
+          iconSize: [24, 24],
+        });
+
+        const marker = leaflet.marker(center, { icon }).addTo(map);
+        state.marker = marker;
+      }
     }
   }
 }
 
 drawGridAroundPlayer();
+
+// 每个 cell 的状态：索引 + token 值（没有则为 null）+ 可选 marker 引用
+type CellState = {
+  index: CellIndex;
+  tokenValue: number | null;
+  marker?: leaflet.Marker;
+};
+
+// 存储所有已生成的 cell 状态，方便后续交互用
+const cellStateById = new Map<string, CellState>();
+
+// 生成唯一 cellId，用于 luck 的 key
+function cellId(cell: CellIndex): string {
+  return `${cell.row},${cell.col}`;
+}
+
+// 用 luck 决定这个 cell 是否有 token，D3.a 先简单做：30% 概率生成 1
+const TOKEN_SPAWN_PROBABILITY = 0.3;
+const TOKEN_SEED_PREFIX = "world-of-bits-d3a";
+
+function initialTokenValueForCell(cell: CellIndex): number | null {
+  const id = cellId(cell);
+  const r = luck(`${TOKEN_SEED_PREFIX}:${id}`); // 0~1 之间，但对同一个 id 永远一样
+
+  if (r < TOKEN_SPAWN_PROBABILITY) {
+    return 1; // 先统一生成 1，之后想玩花样可以再改
+  } else {
+    return null;
+  }
+}
