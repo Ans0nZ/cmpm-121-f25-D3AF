@@ -10,10 +10,10 @@
   - [ x] `./style.css`
   - [x ] `./_leafletWorkaround.ts`
   - [x ] `./_luck.ts`
- - [ ] Create basic layout elements in `main.ts`:
-  - [ ] A `#map` container that fills most of the screen
-  - [ ] A small status HUD showing the token in the player’s hand
-- [ ] Initialize a Leaflet map centered on the classroom location with a reasonable zoom level
+ - [x ] Create basic layout elements in `main.ts`:
+  - [x ] A `#map` container that fills most of the screen
+  - [x ] A small status HUD showing the token in the player’s hand
+- [x ] Initialize a Leaflet map centered on the classroom location with a reasonable zoom level
 - [ ] Define a grid cell size (e.g., `CELL_SIZE_DEG = 0.0001`) and helper functions:
   - [ ] `latLngToCellIndex(lat, lng)` → `{row, col}`
   - [ ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
