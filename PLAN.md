@@ -14,10 +14,10 @@
   - [x ] A `#map` container that fills most of the screen
   - [x ] A small status HUD showing the token in the player’s hand
 - [x ] Initialize a Leaflet map centered on the classroom location with a reasonable zoom level
-- [ ] Define a grid cell size (e.g., `CELL_SIZE_DEG = 0.0001`) and helper functions:
-  - [ ] `latLngToCellIndex(lat, lng)` → `{row, col}`
-  - [ ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
-  - [ ] `cellId(cell)` → string used as the situation key for `luck`
+- [x ] Define a grid cell size (e.g., `CELL_SIZE_DEG = 0.0001`) and helper functions:
+  - [x ] `latLngToCellIndex(lat, lng)` → `{row, col}`
+  - [x ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
+  - [x ] `cellId(cell)` → string used as the situation key for `luck`
 - [ ] Compute the player’s current cell index from the fixed classroom location
 - [ ] Render a square region of cells around the player (e.g., 40×40 cells) as rectangles on the map
 - [ ] For each rendered cell, use `luck(cellId)` (plus a seed string) to decide:
