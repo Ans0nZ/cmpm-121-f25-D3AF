@@ -7,9 +7,10 @@ import "./style.css";
 // 修复 Leaflet 默认 marker 图标丢失的问题（老师给的）
 import "./_leafletWorkaround.ts";
 
-// （之后会用到的运气函数，先导入着）
+// 运气函数，用于确定性生成 token
 import luck from "./_luck.ts";
 
+// --- 基本 UI 布局 ---
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
 controlPanelDiv.textContent = "World of Bits – D3.a (core map only)";
@@ -26,22 +27,17 @@ document.body.append(statusPanelDiv);
 
 // --- 教室位置 & 地图初始化 ---
 
-// 老师 starter code 里的教室坐标（照搬）
 const CLASSROOM_LATLNG = leaflet.latLng(
   36.997936938057016,
   -122.05703507501151,
 );
-
-// 先用和老师一样的缩放级别
 const GAMEPLAY_ZOOM_LEVEL = 19;
 
-// 创建地图对象
 const map = leaflet.map(mapDiv, {
   center: CLASSROOM_LATLNG,
   zoom: GAMEPLAY_ZOOM_LEVEL,
 });
 
-// 添加 OpenStreetMap 底图
 leaflet
   .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -50,9 +46,10 @@ leaflet
   })
   .addTo(map);
 
-// 在教室位置放一个玩家 marker（暂时代表玩家）
 const playerMarker = leaflet.marker(CLASSROOM_LATLNG).addTo(map);
 playerMarker.bindTooltip("You are here", { permanent: true, direction: "top" });
+
+// ========= Grid & token state =========
 
 // 每个格子的“度数大小”（大概一个房子尺寸）
 const CELL_SIZE_DEG = 0.0001;
@@ -62,6 +59,36 @@ type CellIndex = {
   row: number; // 纬度方向
   col: number; // 经度方向
 };
+
+// 每个 cell 的状态：索引 + token 值（没有则为 null）+ 可选 marker 引用
+type CellState = {
+  index: CellIndex;
+  tokenValue: number | null;
+  marker?: leaflet.Marker;
+};
+
+// 存储所有已生成的 cell 状态
+const cellStateById = new Map<string, CellState>();
+
+// 生成唯一 cellId，用于 luck 的 key
+function cellId(cell: CellIndex): string {
+  return `${cell.row},${cell.col}`;
+}
+
+// 用 luck 决定这个 cell 是否有 token，D3.a 先简单做：30% 概率生成 1
+const TOKEN_SPAWN_PROBABILITY = 0.3;
+const TOKEN_SEED_PREFIX = "world-of-bits-d3a";
+
+function initialTokenValueForCell(cell: CellIndex): number | null {
+  const id = cellId(cell);
+  const r = luck(`${TOKEN_SEED_PREFIX}:${id}`); // 0~1 之间，但对同一个 id 永远一样
+
+  if (r < TOKEN_SPAWN_PROBABILITY) {
+    return 1; // 先统一生成 1，之后想玩花样可以再改
+  } else {
+    return null;
+  }
+}
 
 // lat/lng -> cell index
 function latLngToCellIndex(lat: number, lng: number): CellIndex {
@@ -85,7 +112,7 @@ const PLAYER_CELL = latLngToCellIndex(
   CLASSROOM_LATLNG.lng,
 );
 
-// 在玩家附近画一片格子
+// 在玩家附近画一片格子 + 初始 token
 function drawGridAroundPlayer() {
   const radiusInCells = 20; // 上下左右各 20 格，可按需要调大/调小
 
@@ -134,33 +161,3 @@ function drawGridAroundPlayer() {
 }
 
 drawGridAroundPlayer();
-
-// 每个 cell 的状态：索引 + token 值（没有则为 null）+ 可选 marker 引用
-type CellState = {
-  index: CellIndex;
-  tokenValue: number | null;
-  marker?: leaflet.Marker;
-};
-
-// 存储所有已生成的 cell 状态，方便后续交互用
-const cellStateById = new Map<string, CellState>();
-
-// 生成唯一 cellId，用于 luck 的 key
-function cellId(cell: CellIndex): string {
-  return `${cell.row},${cell.col}`;
-}
-
-// 用 luck 决定这个 cell 是否有 token，D3.a 先简单做：30% 概率生成 1
-const TOKEN_SPAWN_PROBABILITY = 0.3;
-const TOKEN_SEED_PREFIX = "world-of-bits-d3a";
-
-function initialTokenValueForCell(cell: CellIndex): number | null {
-  const id = cellId(cell);
-  const r = luck(`${TOKEN_SEED_PREFIX}:${id}`); // 0~1 之间，但对同一个 id 永远一样
-
-  if (r < TOKEN_SPAWN_PROBABILITY) {
-    return 1; // 先统一生成 1，之后想玩花样可以再改
-  } else {
-    return null;
-  }
-}
