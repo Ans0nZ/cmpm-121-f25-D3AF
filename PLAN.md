@@ -18,16 +18,16 @@
   - [x ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
   - [x ] `cellId(cell)` → string used as the situation key for `luck`
 - [x ] Compute the player’s current cell index from the fixed classroom location
-- [ ] Render a square region of cells around the player (e.g., 40×40 cells) as rectangles on the map
-- [ ] For each rendered cell, use `luck(cellId)` (plus a seed string) to decide:
-  - [ ] whether it has an initial token
-  - [ ] the initial token value (for D3.a, probably always `1`)
-- [ ] Store each cell’s state in an in-memory data structure:
-  - [ ] `CellState` type: `{ index, tokenValue, marker? }`
-  - [ ] `cellStates` collection that can be looked up by `cellId`
-- [ ] Make sure that the initial state of a cell is consistent across page loads:
-  - [ ] do not call `Math.random()` for spawning
-  - [ ] only use `luck(seed + cellId)` for initial tokens
+- [x ] Render a square region of cells around the player (e.g., 40×40 cells) as rectangles on the map
+- [x ] For each rendered cell, use `luck(cellId)` (plus a seed string) to decide:
+  - [x ] whether it has an initial token
+  - [x ] the initial token value (for D3.a, probably always `1`)
+- [x ] Store each cell’s state in an in-memory data structure:
+  - [x ] `CellState` type: `{ index, tokenValue, marker? }`
+  - [ x] `cellStates` collection that can be looked up by `cellId`
+- [x ] Make sure that the initial state of a cell is consistent across page loads:
+  - [x ] do not call `Math.random()` for spawning
+  - [x ] only use `luck(seed + cellId)` for initial tokens
 - [ ] Add a `PlayerState` structure:
   - [ ] fixed `lat/lng` for the classroom
   - [ ] `tokenInHand: number | null`
