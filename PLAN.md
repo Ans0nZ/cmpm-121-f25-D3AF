@@ -17,7 +17,7 @@
   - [x ] `latLngToCellIndex(lat, lng)` → `{row, col}`
   - [x ] `cellIndexToBounds(cell)` → Leaflet `LatLngBounds`
   - [x ] `cellId(cell)` → string used as the situation key for `luck`
-- [ ] Compute the player’s current cell index from the fixed classroom location
+- [x ] Compute the player’s current cell index from the fixed classroom location
 - [ ] Render a square region of cells around the player (e.g., 40×40 cells) as rectangles on the map
 - [ ] For each rendered cell, use `luck(cellId)` (plus a seed string) to decide:
   - [ ] whether it has an initial token

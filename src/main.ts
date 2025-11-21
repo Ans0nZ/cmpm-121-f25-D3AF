@@ -49,6 +49,27 @@ leaflet
 const playerMarker = leaflet.marker(CLASSROOM_LATLNG).addTo(map);
 playerMarker.bindTooltip("You are here", { permanent: true, direction: "top" });
 
+// --- 玩家状态 ---
+
+type PlayerState = {
+  lat: number;
+  lng: number;
+  tokenInHand: number | null;
+};
+
+const player: PlayerState = {
+  lat: CLASSROOM_LATLNG.lat,
+  lng: CLASSROOM_LATLNG.lng,
+  tokenInHand: null,
+};
+
+function updateStatusPanel() {
+  statusPanelDiv.textContent =
+    player.tokenInHand === null
+      ? "In hand: (empty)"
+      : `In hand: ${player.tokenInHand}`;
+}
+
 // ========= Grid & token state =========
 
 // 每个格子的“度数大小”（大概一个房子尺寸）
@@ -161,3 +182,4 @@ function drawGridAroundPlayer() {
 }
 
 drawGridAroundPlayer();
+updateStatusPanel();
