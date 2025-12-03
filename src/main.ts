@@ -112,7 +112,7 @@ function initialTokenValueForCell(cell: CellIndex): number | null {
   return r < TOKEN_SPAWN_PROBABILITY ? 1 : null;
 }
 
-function latLngToCellIndex(lat: number, lng: number): CellIndex {
+function _latLngToCellIndex(lat: number, lng: number): CellIndex {
   const row = Math.floor(lat / CELL_SIZE_DEG);
   const col = Math.floor(lng / CELL_SIZE_DEG);
   return { row, col };

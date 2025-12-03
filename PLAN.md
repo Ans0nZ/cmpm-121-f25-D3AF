@@ -83,30 +83,30 @@
   - [x] On click, update `player.lat` / `player.lng` by `CELL_SIZE_DEG` in the chosen direction.
   - [x] Update the `playerMarker` position and re-render visible cells.
 
-- [ ] Switch from a fixed-radius grid around the classroom to a "viewport-based" grid:
-  - [ ] Implement `renderVisibleCells()` that:
-    - [ ] Uses `map.getBounds()` to get the current view rectangle.
-    - [ ] Computes the required `CellIndex` range to fully cover the screen.
-    - [ ] Spawns rectangles and token markers for all cells in that range.
+- [x] Switch from a fixed-radius grid around the classroom to a "viewport-based" grid:
+  - [x] Implement `renderVisibleCells()` that:
+    - [x] Uses `map.getBounds()` to get the current view rectangle.
+    - [x] Computes the required `CellIndex` range to fully cover the screen.
+    - [x] Spawns rectangles and token markers for all cells in that range.
 
-- [ ] Despawn cells that leave the viewport:
-  - [ ] Track all currently rendered `cellId`s.
-  - [ ] When re-rendering, remove rectangles and markers for cells that are no longer visible.
-  - [ ] Remove their `CellState` entries from the `cellStateById` map.
+- [x] Despawn cells that leave the viewport:
+  - [x] Track all currently rendered `cellId`s.
+  - [x] When re-rendering, remove rectangles and markers for cells that are no longer visible.
+  - [x] Remove their `CellState` entries from the `cellStateById` map.
 
-- [ ] Make cells appear "memoryless":
-  - [ ] When a cell re-enters the viewport after being despawned, create a fresh `CellState`.
-  - [ ] Use `initialTokenValueForCell(cell)` again so tokens can respawn and be farmed.
+- [x] Make cells appear "memoryless":
+  - [x] When a cell re-enters the viewport after being despawned, create a fresh `CellState`.
+  - [x] Use `initialTokenValueForCell(cell)` again so tokens can respawn and be farmed.
 
-- [ ] Allow map panning and zooming without moving the player:
-  - [ ] Attach a `moveend` handler to the Leaflet map.
-  - [ ] On `moveend`, call `renderVisibleCells()` so cells update to match the current view.
+- [x] Allow map panning and zooming without moving the player:
+  - [x] Attach a `moveend` handler to the Leaflet map.
+  - [x] On `moveend`, call `renderVisibleCells()` so cells update to match the current view.
 
-- [ ] Update the crafting win condition:
-  - [ ] Increase the `WIN_VALUE` (e.g., from 16 to 32).
-  - [ ] Make sure the win check still triggers when the player holds or creates a token ≥ `WIN_VALUE`.
+- [x] Update the crafting win condition:
+  - [x] Increase the `WIN_VALUE` (e.g., from 16 to 32).
+  - [x] Make sure the win check still triggers when the player holds or creates a token ≥ `WIN_VALUE`.
 
-- [ ] Do a quick usability / sanity pass for D3.b:
-  - [ ] Verify that cells fill the screen wherever the player moves on the globe.
-  - [ ] Confirm that only nearby cells (within interaction radius) can be clicked for crafting.
-  - [ ] Confirm that leaving and re-entering a region lets the player farm new tokens.
+- [x] Do a quick usability / sanity pass for D3.b:
+  - [x] Verify that cells fill the screen wherever the player moves on the globe.
+  - [x] Confirm that only nearby cells (within interaction radius) can be clicked for crafting.
+  - [x] Confirm that leaving and re-entering a region lets the player farm new tokens.
