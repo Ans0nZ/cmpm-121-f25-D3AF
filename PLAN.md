@@ -72,19 +72,18 @@
 
 - [x] Update this PLAN.md to mark completed items and add any new steps discovered during D3.a
 
-
 # D3.b: Globe-spanning Gameplay
 
 ## Steps
 
-- [ ] Extend the grid coordinate system to be earth-spanning and anchored at Null Island (0, 0):
-  - [ ] Keep using `CELL_SIZE_DEG` and `latLngToCellIndex(lat, lng)` based on latitude / longitude.
-  - [ ] Document that (0, 0) is the origin of the grid and that cells cover the whole globe.
+- [x] Extend the grid coordinate system to be earth-spanning and anchored at Null Island (0, 0):
+  - [x] Keep using `CELL_SIZE_DEG` and `latLngToCellIndex(lat, lng)` based on latitude / longitude.
+  - [x] Document that (0, 0) is the origin of the grid and that cells cover the whole globe.
 
-- [ ] Add UI buttons to simulate local player movement by one grid step:
-  - [ ] Add four buttons to the control panel: Move N, Move S, Move E, Move W.
-  - [ ] On click, update `player.lat` / `player.lng` by `CELL_SIZE_DEG` in the chosen direction.
-  - [ ] Update the `playerMarker` position and re-render visible cells.
+- [x] Add UI buttons to simulate local player movement by one grid step:
+  - [x] Add four buttons to the control panel: Move N, Move S, Move E, Move W.
+  - [x] On click, update `player.lat` / `player.lng` by `CELL_SIZE_DEG` in the chosen direction.
+  - [x] Update the `playerMarker` position and re-render visible cells.
 
 - [ ] Switch from a fixed-radius grid around the classroom to a "viewport-based" grid:
   - [ ] Implement `renderVisibleCells()` that:
