@@ -110,3 +110,50 @@
   - [x] Verify that cells fill the screen wherever the player moves on the globe.
   - [x] Confirm that only nearby cells (within interaction radius) can be clicked for crafting.
   - [x] Confirm that leaving and re-entering a region lets the player farm new tokens.
+
+# D3.c: Object persistence
+
+## Flyweight-style cell storage
+
+- [ ] Separate _cell coordinates_ from _cell contents_:
+  - [ ] Keep using `CellIndex { row, col }` for grid coordinates.
+  - [ ] Introduce a `Map<string, number | null>` that stores only modified cell contents.
+- [ ] Treat unmodified cells as “virtual”:
+  - [ ] If a cell is not in the Map, compute its token with `initialTokenValueForCell(cell)`.
+  - [ ] If a cell _is_ in the Map, use that stored value instead.
+
+## Memento-style persistence for modified cells
+
+- [ ] Implement `getCellTokenValue(cellIndex)`:
+  - [ ] Look up `cellId` in the Map of modified cells.
+  - [ ] If found, return stored value.
+  - [ ] If not found, return `initialTokenValueForCell(cellIndex)`.
+
+- [ ] Implement `setCellTokenValue(cellIndex, newValue)`:
+  - [ ] If `newValue` equals the initial value, remove the entry from the Map (no need to store).
+  - [ ] Otherwise, save it in the Map so it persists while off-screen.
+
+## Viewport rendering (rebuild-from-scratch)
+
+- [ ] Maintain a `visibleCells` Map for _only on-screen_ objects:
+  - [ ] Each entry stores `{ index, rect, marker? }`.
+  - [ ] This Map is rebuilt whenever the map moves.
+- [ ] Implement `renderVisibleCells()`:
+  - [ ] Use `map.getBounds()` to compute visible `CellIndex` range.
+  - [ ] For each visible cell:
+    - [ ] Create / reuse a rectangle.
+    - [ ] Use `getCellTokenValue` to show correct token.
+    - [ ] Attach click handlers to both rect and token marker.
+  - [ ] Remove rectangles/markers for cells that are no longer visible.
+  - [ ] **Do not** clear the modified-cells Map here.
+
+## Gameplay behavior
+
+- [ ] When the player picks up, places, or combines tokens:
+  - [ ] Use `getCellTokenValue` to read.
+  - [ ] Use `setCellTokenValue` to write.
+  - [ ] Refresh the corresponding visible cell’s marker.
+- [ ] Verify behavior:
+  - [ ] If you change a cell, move it off-screen, then back:
+    - [ ] The cell remembers the modified token.
+  - [ ] Unchanged cells are consistent thanks to `luck(seed + cellId)` but don’t occupy memory.
