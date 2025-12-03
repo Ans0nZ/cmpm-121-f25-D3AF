@@ -1,13 +1,15 @@
 // @deno-types="npm:@types/leaflet"
 import leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "./style.css";
 import "./_leafletWorkaround.ts";
 import luck from "./_luck.ts";
-import "./style.css";
+
+// --- 基本布局 ---
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
-controlPanelDiv.textContent = "World of Bits – D3.b (globe-spanning)";
+controlPanelDiv.textContent = "World of Bits – D3.a / D3.b (core mechanics)";
 document.body.append(controlPanelDiv);
 
 const mapDiv = document.createElement("div");
@@ -66,13 +68,11 @@ function updateStatusPanel() {
 
 const CELL_SIZE_DEG = 0.0001;
 
-// 纯索引（地球网格坐标）
 type CellIndex = {
   row: number;
   col: number;
 };
 
-// 包含在屏幕上的渲染信息
 type CellState = {
   index: CellIndex;
   tokenValue: number | null;
@@ -114,7 +114,7 @@ function cellIndexToBounds(cell: CellIndex): leaflet.LatLngBounds {
 function cellDistance(a: CellIndex, b: CellIndex): number {
   const dr = Math.abs(a.row - b.row);
   const dc = Math.abs(a.col - b.col);
-  return Math.max(dr, dc);
+  return Math.max(dr, dc); // Chebyshev 距离：8 邻域
 }
 
 const INTERACTION_RADIUS_IN_CELLS = 3;
@@ -149,32 +149,18 @@ function updateCellMarker(state: CellState) {
     state.marker.setLatLng(center);
   } else {
     state.marker = leaflet.marker(center, { icon }).addTo(map);
-    // ⬇⬇⬇ 新增：点击数字本身也能触发交互
-    state.marker.on("click", () => handleCellClick(state));
   }
 }
 
-// --- 胜利条件 ---
+// --- 点击 / 合成逻辑 ---
 
-const WIN_VALUE = 32; // D3.b：提高一点门槛
+const WIN_VALUE = 16; // D3.b 之后会再提高门槛
 
 function checkWinCondition() {
-  // 手牌达标
   if (player.tokenInHand !== null && player.tokenInHand >= WIN_VALUE) {
     alert(`You win! You crafted a token of value ${player.tokenInHand}.`);
-    return;
-  }
-
-  // 地图上任何一个 cell 达标
-  for (const state of cellStateById.values()) {
-    if (state.tokenValue !== null && state.tokenValue >= WIN_VALUE) {
-      alert(`You win! A cell reached value ${state.tokenValue}.`);
-      return;
-    }
   }
 }
-
-// --- 点击逻辑 ---
 
 function handleCellClick(state: CellState) {
   if (!canInteractWithCell(state.index)) {
@@ -219,124 +205,121 @@ function handleCellClick(state: CellState) {
   alert("Cannot interact with this cell in that way.");
 }
 
-// --- 视口驱动的格子渲染（D3.b 核心） ---
+// --- 视口驱动的格子渲染（D3.b）---
 
 function renderVisibleCells() {
-  // 当前 Leaflet 视口的地理范围
+  // 1. 当前地图视口
   const bounds = map.getBounds();
-  const south = bounds.getSouth();
-  const north = bounds.getNorth();
-  const west = bounds.getWest();
-  const east = bounds.getEast();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
 
-  // 需要覆盖整个屏幕的 row/col 范围
-  const minRow = Math.floor(south / CELL_SIZE_DEG);
-  const maxRow = Math.floor(north / CELL_SIZE_DEG);
-  const minCol = Math.floor(west / CELL_SIZE_DEG);
-  const maxCol = Math.floor(east / CELL_SIZE_DEG);
+  // 2. 转成 cell 范围（多一圈 buffer）
+  const minCell = latLngToCellIndex(sw.lat, sw.lng);
+  const maxCell = latLngToCellIndex(ne.lat, ne.lng);
 
-  const nextVisible = new Set<string>();
+  const keepIds = new Set<string>();
 
-  // 生成 / 更新当前视口中的格子
-  for (let row = minRow; row <= maxRow; row++) {
-    for (let col = minCol; col <= maxCol; col++) {
+  for (let row = minCell.row - 1; row <= maxCell.row + 1; row++) {
+    for (let col = minCell.col - 1; col <= maxCell.col + 1; col++) {
       const cell: CellIndex = { row, col };
       const id = cellId(cell);
-      nextVisible.add(id);
+      keepIds.add(id);
 
       let state = cellStateById.get(id);
-
       if (!state) {
-        // D3.b 要求 memoryless：每次进入视野都重新生成
+        // 记忆丢失：每次重新进入视口都创建新的状态
         const tokenValue = initialTokenValueForCell(cell);
         state = { index: cell, tokenValue };
         cellStateById.set(id, state);
       }
 
-      // 如果还没有矩形，就创建一个
+      const cellBounds = cellIndexToBounds(cell);
+
       if (!state.rect) {
-        const cellBounds = cellIndexToBounds(cell);
-        const rect = leaflet.rectangle(cellBounds, {
+        state.rect = leaflet.rectangle(cellBounds, {
           weight: 1,
           color: "#666",
           fillOpacity: 0,
         }).addTo(map);
 
-        rect.on("click", () => handleCellClick(state));
-        state.rect = rect;
+        state.rect.on("click", () => handleCellClick(state));
+      } else {
+        state.rect.setBounds(cellBounds);
       }
 
-      // 确保 token 显示正确
       updateCellMarker(state);
     }
   }
 
-  // 把离开视口的格子全部 despawn（memoryless）
-  for (const [id, state] of cellStateById.entries()) {
-    if (!nextVisible.has(id)) {
+  // 3. 把离开视口的格子 despawn 掉
+  const toDelete: string[] = [];
+
+  for (const [id, state] of cellStateById) {
+    if (!keepIds.has(id)) {
       if (state.rect) {
         map.removeLayer(state.rect);
+        delete state.rect;
       }
       if (state.marker) {
         map.removeLayer(state.marker);
+        delete state.marker;
       }
-      cellStateById.delete(id);
+      toDelete.push(id);
     }
+  }
+
+  for (const id of toDelete) {
+    cellStateById.delete(id);
   }
 }
 
-// --- 玩家移动按钮（以格子大小为步长） ---
+// --- 玩家移动 & 控制按钮（按格子移动）---
 
-function addMovementButtons() {
-  const makeButton = (label: string, onClick: () => void) => {
-    const btn = document.createElement("button");
-    btn.textContent = label;
-    btn.addEventListener("click", onClick);
-    controlPanelDiv.append(" ");
-    controlPanelDiv.append(btn);
-  };
+function movePlayer(dLat: number, dLng: number) {
+  player.lat += dLat;
+  player.lng += dLng;
 
-  // 北：纬度 +CELL_SIZE_DEG
-  makeButton("Move N", () => {
-    player.lat += CELL_SIZE_DEG;
-    playerMarker.setLatLng([player.lat, player.lng]);
-    renderVisibleCells();
-    updateStatusPanel();
-  });
+  const newPos = leaflet.latLng(player.lat, player.lng);
+  playerMarker.setLatLng(newPos);
 
-  // 南：纬度 -CELL_SIZE_DEG
-  makeButton("Move S", () => {
-    player.lat -= CELL_SIZE_DEG;
-    playerMarker.setLatLng([player.lat, player.lng]);
-    renderVisibleCells();
-    updateStatusPanel();
-  });
+  // 可选：让地图跟着玩家走
+  map.panTo(newPos);
 
-  // 东：经度 +CELL_SIZE_DEG
-  makeButton("Move E", () => {
-    player.lng += CELL_SIZE_DEG;
-    playerMarker.setLatLng([player.lat, player.lng]);
-    renderVisibleCells();
-    updateStatusPanel();
-  });
-
-  // 西：经度 -CELL_SIZE_DEG
-  makeButton("Move W", () => {
-    player.lng -= CELL_SIZE_DEG;
-    playerMarker.setLatLng([player.lat, player.lng]);
-    renderVisibleCells();
-    updateStatusPanel();
-  });
+  updateStatusPanel();
+  renderVisibleCells();
 }
 
-// --- 地图事件：允许拖动 / 缩放时自动刷新格子 ---
+const movesDiv = document.createElement("div");
+movesDiv.id = "movesPanel";
+movesDiv.textContent = "Move player:";
+
+const btnN = document.createElement("button");
+btnN.textContent = "N";
+
+const btnS = document.createElement("button");
+btnS.textContent = "S";
+
+const btnE = document.createElement("button");
+btnE.textContent = "E";
+
+const btnW = document.createElement("button");
+btnW.textContent = "W";
+
+btnN.onclick = () => movePlayer(CELL_SIZE_DEG, 0);
+btnS.onclick = () => movePlayer(-CELL_SIZE_DEG, 0);
+btnE.onclick = () => movePlayer(0, CELL_SIZE_DEG);
+btnW.onclick = () => movePlayer(0, -CELL_SIZE_DEG);
+
+movesDiv.append(btnN, btnS, btnE, btnW);
+controlPanelDiv.append(movesDiv);
+
+// --- 地图 moveend：拖拽 / 缩放时刷新格子 ---
 
 map.on("moveend", () => {
   renderVisibleCells();
 });
 
-// --- 启动时初始化 ---
+// --- 初始化 ---
 
-addMovementButtons();
 renderVisibleCells();
 updateStatusPanel();
