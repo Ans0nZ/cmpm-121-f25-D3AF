@@ -74,8 +74,6 @@
 
 # D3.b: Globe-spanning Gameplay
 
-## Steps
-
 - [x] Extend the grid coordinate system to be earth-spanning and anchored at Null Island (0, 0):
   - [x] Keep using `CELL_SIZE_DEG` and `latLngToCellIndex(lat, lng)` based on latitude / longitude.
   - [x] Document that (0, 0) is the origin of the grid and that cells cover the whole globe.
