@@ -184,14 +184,14 @@
 
 ## Persistent game state
 
-- [ ] Design a serializable game state object:
-  - [ ] Player lat/lng and `tokenInHand`.
-  - [ ] `modifiedCellTokens` contents.
-- [ ] On significant changes (movement / pick-up / place / combine):
-  - [ ] Save game state to `localStorage`.
-- [ ] On page load:
-  - [ ] Try to load saved state from `localStorage`.
-  - [ ] If present, restore player position and `modifiedCellTokens`, then render.
-- [ ] Add a “New Game” control that:
-  - [ ] Clears saved state.
-  - [ ] Resets player and `modifiedCellTokens`.
+- [x] Design a serializable game state object:
+  - [x] Player lat/lng and `tokenInHand`.
+  - [x] `modifiedCellTokens` contents.
+- [x] On significant changes (movement / pick-up / place / combine):
+  - [x] Save game state to `localStorage`.
+- [x] On page load:
+  - [x] Try to load saved state from `localStorage`.
+  - [x] If present, restore player position and `modifiedCellTokens`, then render.
+- [x] Add a “New Game” control that:
+  - [x] Clears saved state.
+  - [x] Resets player and `modifiedCellTokens`.

@@ -9,8 +9,7 @@ import "./style.css";
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
-controlPanelDiv.textContent =
-  "World of Bits – D3.d (geolocation + persistence + facade)";
+controlPanelDiv.textContent = "World of Bits – D3.d (geo + persistence)";
 document.body.append(controlPanelDiv);
 
 const mapDiv = document.createElement("div");
@@ -21,22 +20,21 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// 移动按钮容器（给按钮模式用）
+// 移动按钮容器
 const moveButtonsDiv = document.createElement("div");
 moveButtonsDiv.id = "moveButtons";
 controlPanelDiv.append(moveButtonsDiv);
 
-// 模式切换控制区
-const movementModeDiv = document.createElement("div");
-movementModeDiv.id = "movementModeControls";
-controlPanelDiv.append(movementModeDiv);
-
-const movementModeLabel = document.createElement("span");
-movementModeLabel.textContent = "Movement mode: ";
-movementModeDiv.append(movementModeLabel);
-
+// movement 模式切换按钮
 const movementModeButton = document.createElement("button");
-movementModeDiv.append(movementModeButton);
+movementModeButton.id = "movementModeButton";
+controlPanelDiv.append(movementModeButton);
+
+// New Game 按钮
+const newGameButton = document.createElement("button");
+newGameButton.id = "newGameButton";
+newGameButton.textContent = "New Game";
+controlPanelDiv.append(newGameButton);
 
 // --- 地图初始化（教室附近，但网格概念上覆盖整个地球） ---
 
@@ -98,7 +96,7 @@ type CellIndex = {
   col: number; // 经度方向索引
 };
 
-// D3.c：CellState 专门用来描述“屏幕上的对象”，不直接存 token 数值
+// CellState 专门用来描述“屏幕上的对象”，不直接存 token 数值
 type CellState = {
   index: CellIndex;
   rect: leaflet.Rectangle;
@@ -118,10 +116,9 @@ function cellId(cell: CellIndex): string {
 const TOKEN_SPAWN_PROBABILITY = 0.3;
 const TOKEN_SEED_PREFIX = "world-of-bits-d3";
 
-// 用 luck 决定这个 cell 的初始 token
 function initialTokenValueForCell(cell: CellIndex): number | null {
   const id = cellId(cell);
-  const r = luck(`${TOKEN_SEED_PREFIX}:${id}`);
+  const r = luck(`${TOKEN_SPAWN_PROBABILITY}:${TOKEN_SEED_PREFIX}:${id}`);
   return r < TOKEN_SPAWN_PROBABILITY ? 1 : null;
 }
 
@@ -139,7 +136,7 @@ function cellIndexToBounds(cell: CellIndex): leaflet.LatLngBounds {
   return leaflet.latLngBounds([minLat, minLng], [maxLat, maxLng]);
 }
 
-// --- D3.c：持久化 Map（只存被“修改过”的格子），Flyweight + Memento 核心 ---
+// --- 持久化 Map（只存被“修改过”的格子），Flyweight + Memento 核心 ---
 
 // key: cellId, value: 当前 token（包括 null）
 const modifiedCellTokens = new Map<string, number | null>();
@@ -149,7 +146,6 @@ function getCellTokenValue(index: CellIndex): number | null {
   if (modifiedCellTokens.has(id)) {
     return modifiedCellTokens.get(id)!;
   }
-  // 没有被改动过 -> 用初始值
   return initialTokenValueForCell(index);
 }
 
@@ -157,11 +153,79 @@ function setCellTokenValue(index: CellIndex, newValue: number | null): void {
   const id = cellId(index);
   const base = initialTokenValueForCell(index);
 
-  // 如果新的值跟“本来就该有的初始值”一样，就不占内存
   if (newValue === base) {
     modifiedCellTokens.delete(id);
   } else {
     modifiedCellTokens.set(id, newValue);
+  }
+}
+
+// --- localStorage 持久化整个游戏状态 ---
+
+type SavedCellEntry = {
+  id: string;
+  value: number | null;
+};
+
+type SavedGameState = {
+  playerLat: number;
+  playerLng: number;
+  tokenInHand: number | null;
+  modifiedCells: SavedCellEntry[];
+};
+
+const STORAGE_KEY = "world-of-bits-d3-state";
+
+interface GlobalWithStorage {
+  localStorage: Storage;
+}
+
+function getLocalStorageSafe(): Storage | null {
+  if ("localStorage" in globalThis) {
+    return (globalThis as unknown as GlobalWithStorage).localStorage;
+  }
+  return null;
+}
+
+function saveGameState(): void {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+
+  const state: SavedGameState = {
+    playerLat: player.lat,
+    playerLng: player.lng,
+    tokenInHand: player.tokenInHand,
+    modifiedCells: Array.from(modifiedCellTokens.entries()).map(
+      ([id, value]) => ({ id, value }),
+    ),
+  };
+
+  storage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadGameState(): void {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+
+  const raw = storage.getItem(STORAGE_KEY);
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw) as SavedGameState;
+
+    player.lat = parsed.playerLat;
+    player.lng = parsed.playerLng;
+    player.tokenInHand = parsed.tokenInHand;
+
+    modifiedCellTokens.clear();
+    for (const entry of parsed.modifiedCells ?? []) {
+      modifiedCellTokens.set(entry.id, entry.value);
+    }
+
+    playerMarker.setLatLng([player.lat, player.lng]);
+    map.setView([player.lat, player.lng], GAMEPLAY_ZOOM_LEVEL);
+  } catch (err) {
+    console.error("Failed to load game state", err);
   }
 }
 
@@ -211,12 +275,11 @@ function updateCellMarker(state: CellState) {
     state.marker.setLatLng(center);
   } else {
     state.marker = leaflet.marker(center, { icon }).addTo(map);
-    // 点击数字本身也能触发交互
     state.marker.on("click", () => handleCellClick(state));
   }
 }
 
-// --- 胜利判定（D3.b/D3.c/D3.d 都用更高目标值） ---
+// --- 胜利判定 ---
 
 const WIN_VALUE = 32;
 
@@ -247,6 +310,7 @@ function handleCellClick(state: CellState) {
     setCellTokenValue(state.index, null);
     updateCellMarker(state);
     updateStatusPanel();
+    saveGameState();
     return;
   }
 
@@ -257,6 +321,7 @@ function handleCellClick(state: CellState) {
     updateCellMarker(state);
     updateStatusPanel();
     checkWinCondition(handHas);
+    saveGameState();
     return;
   }
 
@@ -268,6 +333,7 @@ function handleCellClick(state: CellState) {
     updateCellMarker(state);
     updateStatusPanel();
     checkWinCondition(newValue);
+    saveGameState();
     return;
   }
 
@@ -288,14 +354,12 @@ function renderVisibleCells() {
 
   const nextVisibleCellIds = new Set<string>();
 
-  // 生成 / 更新视口内的格子
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
       const cell: CellIndex = { row, col };
       const id = cellId(cell);
       nextVisibleCellIds.add(id);
 
-      // 已经在视口里了：保留当前可视状态
       if (currentlyVisibleCellIds.has(id)) continue;
 
       const cellBounds = cellIndexToBounds(cell);
@@ -331,31 +395,25 @@ function renderVisibleCells() {
   currentlyVisibleCellIds = nextVisibleCellIds;
 }
 
-// 初次渲染
-renderVisibleCells();
-updateStatusPanel();
-
 // 地图移动结束时，刷新视口格子
 map.on("moveend", () => {
   renderVisibleCells();
 });
 
-// --- 玩家移动（按格子步长）---
+// --- 玩家移动（被按钮和 GPS 共用） ---
 
 function movePlayerBy(deltaRow: number, deltaCol: number) {
-  // row 增加 -> 纬度增加；col 增加 -> 经度增加
   player.lat += deltaRow * CELL_SIZE_DEG;
   player.lng += deltaCol * CELL_SIZE_DEG;
 
   playerMarker.setLatLng([player.lat, player.lng]);
-  // 让地图跟随玩家移动
   map.panTo([player.lat, player.lng]);
 
   updateStatusPanel();
-  // panTo 会触发 moveend -> renderVisibleCells
+  saveGameState();
 }
 
-// --- MovementDriver 接口 + 按钮 / 定位实现（D3.d：Facade） ---
+// --- MovementDriver 接口 + 实现（Facade） ---
 
 type MovementDriver = {
   start(): void;
@@ -372,10 +430,10 @@ class ButtonMovementDriver implements MovementDriver {
     if (this.active) return;
     this.active = true;
 
-    this.createButton("Move N", +1, 0); // row+1 (纬度增大)
-    this.createButton("Move S", -1, 0); // row-1
-    this.createButton("Move E", 0, +1); // col+1 (经度增大)
-    this.createButton("Move W", 0, -1); // col-1
+    this.createButton("Move N", +1, 0);
+    this.createButton("Move S", -1, 0);
+    this.createButton("Move E", 0, +1);
+    this.createButton("Move W", 0, -1);
   }
 
   stop(): void {
@@ -397,119 +455,148 @@ class ButtonMovementDriver implements MovementDriver {
   }
 }
 
-// 🚶‍♂️ GeolocationMovementDriver：用真实世界位置驱动玩家移动
 class GeolocationMovementDriver implements MovementDriver {
   private watchId: number | null = null;
-  private lastIndex: CellIndex | null = null;
-  private active = false;
+  private lastLat: number | null = null;
+  private lastLng: number | null = null;
 
   start(): void {
-    if (this.active) return;
-    this.active = true;
+    if (this.watchId !== null) return;
 
     if (!("geolocation" in navigator)) {
-      alert("Geolocation is not supported in this browser.");
-      this.active = false;
+      alert("Geolocation is not supported; staying in button mode.");
       return;
     }
 
     this.watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        if (!this.active) return;
+      (pos) => {
+        const newLat = pos.coords.latitude;
+        const newLng = pos.coords.longitude;
 
-        const { latitude, longitude } = position.coords;
-        const currentIndex = _latLngToCellIndex(latitude, longitude);
-
-        if (this.lastIndex === null) {
-          // 第一次定位：把玩家“对齐”到当前 real-world cell
-          const playerIndex = _latLngToCellIndex(player.lat, player.lng);
-          const deltaRow = currentIndex.row - playerIndex.row;
-          const deltaCol = currentIndex.col - playerIndex.col;
-          if (deltaRow !== 0 || deltaCol !== 0) {
-            movePlayerBy(deltaRow, deltaCol);
-          }
-          this.lastIndex = currentIndex;
+        if (this.lastLat === null || this.lastLng === null) {
+          // 第一次定位：把玩家传送到当前位置
+          player.lat = newLat;
+          player.lng = newLng;
+          playerMarker.setLatLng([player.lat, player.lng]);
+          map.setView([player.lat, player.lng], GAMEPLAY_ZOOM_LEVEL);
+          this.lastLat = newLat;
+          this.lastLng = newLng;
+          updateStatusPanel();
+          renderVisibleCells();
+          saveGameState();
           return;
         }
 
-        const deltaRow = currentIndex.row - this.lastIndex.row;
-        const deltaCol = currentIndex.col - this.lastIndex.col;
+        const dLat = newLat - this.lastLat;
+        const dLng = newLng - this.lastLng;
+
+        this.lastLat = newLat;
+        this.lastLng = newLng;
+
+        const deltaRow = Math.round(dLat / CELL_SIZE_DEG);
+        const deltaCol = Math.round(dLng / CELL_SIZE_DEG);
 
         if (deltaRow !== 0 || deltaCol !== 0) {
           movePlayerBy(deltaRow, deltaCol);
-          this.lastIndex = currentIndex;
         }
       },
-      (error) => {
-        console.error("Geolocation error:", error);
-        alert(`Geolocation error: ${error.message}`);
+      (err) => {
+        console.error("Geolocation error", err);
+        alert("Geolocation error; staying in button mode.");
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 10000,
+        maximumAge: 10_000,
+        timeout: 10_000,
       },
     );
   }
 
   stop(): void {
-    if (!this.active) return;
-    this.active = false;
-
-    if (this.watchId !== null) {
+    if (this.watchId !== null && "geolocation" in navigator) {
       navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
     }
-    this.lastIndex = null;
+    this.watchId = null;
+    this.lastLat = null;
+    this.lastLng = null;
   }
 }
 
-// --- Movement mode switching（按钮 <-> 定位）---
+// --- Movement mode 切换 ---
 
 type MovementMode = "buttons" | "geo";
 
 const buttonDriver = new ButtonMovementDriver(moveButtonsDiv);
 const geoDriver = new GeolocationMovementDriver();
 
-let currentDriver: MovementDriver | null = null;
 let currentMode: MovementMode = "buttons";
+let currentDriver: MovementDriver = buttonDriver;
 
-function applyMovementMode(mode: MovementMode) {
-  if (currentDriver) {
-    currentDriver.stop();
-  }
+function applyMovementMode(mode: MovementMode): void {
+  currentDriver.stop();
 
   if (mode === "buttons") {
     buttonDriver.start();
-    movementModeButton.textContent = "Switch to Geolocation";
+    movementModeButton.textContent = "Use GPS movement";
+    currentDriver = buttonDriver;
   } else {
     geoDriver.start();
-    movementModeButton.textContent = "Switch to Buttons";
+    movementModeButton.textContent = "Use button movement";
+    currentDriver = geoDriver;
   }
 
   currentMode = mode;
-  currentDriver = mode === "buttons" ? buttonDriver : geoDriver;
 }
 
 function getInitialMovementMode(): MovementMode {
-  const params = new URLSearchParams(window.location.search);
+  const search = "location" in globalThis
+    ? (globalThis.location as Location).search
+    : "";
+
+  const params = new URLSearchParams(search);
   const m = params.get("movement");
   if (!m) return "buttons";
+
   const v = m.toLowerCase();
-  if (v === "geolocation" || v === "geo" || v === "gps") {
-    return "geo";
-  }
-  if (v === "buttons" || v === "btn") {
-    return "buttons";
-  }
+  if (v === "geolocation" || v === "geo" || v === "gps") return "geo";
+  if (v === "buttons" || v === "btn") return "buttons";
   return "buttons";
 }
 
 movementModeButton.addEventListener("click", () => {
-  const next: MovementMode = currentMode === "buttons" ? "geo" : "buttons";
-  applyMovementMode(next);
+  const nextMode: MovementMode = currentMode === "buttons" ? "geo" : "buttons";
+  applyMovementMode(nextMode);
 });
 
-// 根据 query string 决定初始模式
+// --- New Game 按钮逻辑 ---
+
+newGameButton.addEventListener("click", () => {
+  const confirmed = confirm("Start a new game? Current progress will be lost.");
+  if (!confirmed) return;
+
+  modifiedCellTokens.clear();
+
+  player.lat = CLASSROOM_LATLNG.lat;
+  player.lng = CLASSROOM_LATLNG.lng;
+  player.tokenInHand = null;
+
+  const storage = getLocalStorageSafe();
+  if (storage) {
+    storage.removeItem(STORAGE_KEY);
+  }
+
+  playerMarker.setLatLng([player.lat, player.lng]);
+  map.setView([player.lat, player.lng], GAMEPLAY_ZOOM_LEVEL);
+
+  renderVisibleCells();
+  updateStatusPanel();
+});
+
+// --- 启动顺序：先尝试加载存档，再渲染，再设置 movement 模式 ---
+
+loadGameState();
+renderVisibleCells();
+updateStatusPanel();
+
 const initialMode = getInitialMovementMode();
 applyMovementMode(initialMode);
