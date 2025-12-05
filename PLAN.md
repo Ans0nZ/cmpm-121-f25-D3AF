@@ -178,9 +178,9 @@
 
 ## Movement mode switching
 
-- [ ] Add a control to switch between button-based and geolocation-based movement:
-  - [ ] Either by query string (`?movement=geolocation`) or an on-screen toggle.
-  - [ ] When switching, call `oldDriver.stop()` and `newDriver.start()`.
+- [x] Add a control to switch between button-based and geolocation-based movement:
+  - [x] Either by query string (`?movement=geolocation`) or an on-screen toggle.
+  - [x] When switching, call `oldDriver.stop()` and `newDriver.start()`.
 
 ## Persistent game state
 

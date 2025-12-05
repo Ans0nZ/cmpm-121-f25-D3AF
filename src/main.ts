@@ -9,7 +9,8 @@ import "./style.css";
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
-controlPanelDiv.textContent = "World of Bits – D3.c (persistence + facade)";
+controlPanelDiv.textContent =
+  "World of Bits – D3.d (geolocation + persistence + facade)";
 document.body.append(controlPanelDiv);
 
 const mapDiv = document.createElement("div");
@@ -20,10 +21,22 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// 移动按钮容器
+// 移动按钮容器（给按钮模式用）
 const moveButtonsDiv = document.createElement("div");
 moveButtonsDiv.id = "moveButtons";
 controlPanelDiv.append(moveButtonsDiv);
+
+// 模式切换控制区
+const movementModeDiv = document.createElement("div");
+movementModeDiv.id = "movementModeControls";
+controlPanelDiv.append(movementModeDiv);
+
+const movementModeLabel = document.createElement("span");
+movementModeLabel.textContent = "Movement mode: ";
+movementModeDiv.append(movementModeLabel);
+
+const movementModeButton = document.createElement("button");
+movementModeDiv.append(movementModeButton);
 
 // --- 地图初始化（教室附近，但网格概念上覆盖整个地球） ---
 
@@ -203,7 +216,7 @@ function updateCellMarker(state: CellState) {
   }
 }
 
-// --- 胜利判定（D3.b/D3.c 都用更高目标值） ---
+// --- 胜利判定（D3.b/D3.c/D3.d 都用更高目标值） ---
 
 const WIN_VALUE = 32;
 
@@ -451,8 +464,52 @@ class GeolocationMovementDriver implements MovementDriver {
   }
 }
 
-// 现在先继续用“按钮驱动版”，下一步再做模式切换
-const movementDriver: MovementDriver = new ButtonMovementDriver(
-  moveButtonsDiv,
-);
-movementDriver.start();
+// --- Movement mode switching（按钮 <-> 定位）---
+
+type MovementMode = "buttons" | "geo";
+
+const buttonDriver = new ButtonMovementDriver(moveButtonsDiv);
+const geoDriver = new GeolocationMovementDriver();
+
+let currentDriver: MovementDriver | null = null;
+let currentMode: MovementMode = "buttons";
+
+function applyMovementMode(mode: MovementMode) {
+  if (currentDriver) {
+    currentDriver.stop();
+  }
+
+  if (mode === "buttons") {
+    buttonDriver.start();
+    movementModeButton.textContent = "Switch to Geolocation";
+  } else {
+    geoDriver.start();
+    movementModeButton.textContent = "Switch to Buttons";
+  }
+
+  currentMode = mode;
+  currentDriver = mode === "buttons" ? buttonDriver : geoDriver;
+}
+
+function getInitialMovementMode(): MovementMode {
+  const params = new URLSearchParams(window.location.search);
+  const m = params.get("movement");
+  if (!m) return "buttons";
+  const v = m.toLowerCase();
+  if (v === "geolocation" || v === "geo" || v === "gps") {
+    return "geo";
+  }
+  if (v === "buttons" || v === "btn") {
+    return "buttons";
+  }
+  return "buttons";
+}
+
+movementModeButton.addEventListener("click", () => {
+  const next: MovementMode = currentMode === "buttons" ? "geo" : "buttons";
+  applyMovementMode(next);
+});
+
+// 根据 query string 决定初始模式
+const initialMode = getInitialMovementMode();
+applyMovementMode(initialMode);
