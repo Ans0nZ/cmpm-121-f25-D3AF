@@ -9,7 +9,7 @@ import "./style.css";
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
-controlPanelDiv.textContent = "World of Bits – D3.b (globe gameplay)";
+controlPanelDiv.textContent = "World of Bits – D3.c (persistence)";
 document.body.append(controlPanelDiv);
 
 const mapDiv = document.createElement("div");
@@ -85,17 +85,17 @@ type CellIndex = {
   col: number; // 经度方向索引
 };
 
+// D3.c：CellState 专门用来描述“屏幕上的对象”，不直接存 token 数值
 type CellState = {
   index: CellIndex;
-  tokenValue: number | null;
+  rect: leaflet.Rectangle;
   marker?: leaflet.Marker;
-  rect?: leaflet.Rectangle;
 };
 
 // 当前视口内有哪些 cellId
 let currentlyVisibleCellIds = new Set<string>();
 
-// 只保存**当前可见**格子的状态；离开视口就删掉，以实现“memoryless”
+// 只保存**当前可见**格子的可视状态（rect/marker）
 const cellStateById = new Map<string, CellState>();
 
 function cellId(cell: CellIndex): string {
@@ -105,7 +105,7 @@ function cellId(cell: CellIndex): string {
 const TOKEN_SPAWN_PROBABILITY = 0.3;
 const TOKEN_SEED_PREFIX = "world-of-bits-d3";
 
-// 用 luck 决定这个 cell 的初始 token（用于“忘记状态后再生成”）
+// 用 luck 决定这个 cell 的初始 token
 function initialTokenValueForCell(cell: CellIndex): number | null {
   const id = cellId(cell);
   const r = luck(`${TOKEN_SEED_PREFIX}:${id}`);
@@ -126,7 +126,33 @@ function cellIndexToBounds(cell: CellIndex): leaflet.LatLngBounds {
   return leaflet.latLngBounds([minLat, minLng], [maxLat, maxLng]);
 }
 
-// --- 交互距离（用玩家位置 vs 格子中心算距离，修复“有时点不到 1”） ---
+// --- D3.c：持久化 Map（只存被“修改过”的格子），Flyweight + Memento 核心 ---
+
+// key: cellId, value: 当前 token（包括 null）
+const modifiedCellTokens = new Map<string, number | null>();
+
+function getCellTokenValue(index: CellIndex): number | null {
+  const id = cellId(index);
+  if (modifiedCellTokens.has(id)) {
+    return modifiedCellTokens.get(id)!;
+  }
+  // 没有被改动过 -> 用初始值
+  return initialTokenValueForCell(index);
+}
+
+function setCellTokenValue(index: CellIndex, newValue: number | null): void {
+  const id = cellId(index);
+  const base = initialTokenValueForCell(index);
+
+  // 如果新的值跟“本来就该有的初始值”一样，就不占内存
+  if (newValue === base) {
+    modifiedCellTokens.delete(id);
+  } else {
+    modifiedCellTokens.set(id, newValue);
+  }
+}
+
+// --- 交互距离（用玩家位置 vs 格子中心算距离） ---
 
 const INTERACTION_RADIUS_IN_CELLS = 3;
 
@@ -145,13 +171,15 @@ function canInteractWithCell(cell: CellIndex): boolean {
   return chebyshevDistance <= INTERACTION_RADIUS_IN_CELLS;
 }
 
-// --- Marker 更新 ---
+// --- Marker 更新（从 Map 里取值，而不是从 CellState 里取） ---
 
 function updateCellMarker(state: CellState) {
   const bounds = cellIndexToBounds(state.index);
   const center = bounds.getCenter();
 
-  if (state.tokenValue === null) {
+  const tokenValue = getCellTokenValue(state.index);
+
+  if (tokenValue === null) {
     if (state.marker) {
       map.removeLayer(state.marker);
       delete state.marker;
@@ -161,7 +189,7 @@ function updateCellMarker(state: CellState) {
 
   const icon = leaflet.divIcon({
     className: "token-icon",
-    html: `<span>${state.tokenValue}</span>`,
+    html: `<span>${tokenValue}</span>`,
     iconSize: [24, 24],
   });
 
@@ -170,26 +198,26 @@ function updateCellMarker(state: CellState) {
     state.marker.setLatLng(center);
   } else {
     state.marker = leaflet.marker(center, { icon }).addTo(map);
-    // ⬇⬇⬇ 新增：点击数字本身也能触发交互
+    // 点击数字本身也能触发交互
     state.marker.on("click", () => handleCellClick(state));
   }
 }
 
-// --- 胜利判定（D3.b 提高目标值） ---
+// --- 胜利判定（D3.b/D3.c 都用更高目标值） ---
 
 const WIN_VALUE = 32;
 
-function checkWinCondition(cellState?: CellState) {
+function checkWinCondition(cellValue?: number | null) {
   const handValue = player.tokenInHand ?? 0;
-  const cellValue = cellState?.tokenValue ?? 0;
-  const maxValue = Math.max(handValue, cellValue);
+  const cellVal = cellValue ?? 0;
+  const maxValue = Math.max(handValue, cellVal);
 
   if (maxValue >= WIN_VALUE) {
     alert(`You win! You crafted a token of value ${maxValue}.`);
   }
 }
 
-// --- 点击逻辑 ---
+// --- 点击逻辑（通过 get/set 读写 token 值） ---
 
 function handleCellClick(state: CellState) {
   if (!canInteractWithCell(state.index)) {
@@ -197,44 +225,44 @@ function handleCellClick(state: CellState) {
     return;
   }
 
-  const cellHas = state.tokenValue;
+  const cellHas = getCellTokenValue(state.index);
   const handHas = player.tokenInHand;
 
-  // 拾取
+  // 拾取：手空 & 格子有东西
   if (handHas === null && cellHas !== null) {
     player.tokenInHand = cellHas;
-    state.tokenValue = null;
+    setCellTokenValue(state.index, null);
     updateCellMarker(state);
     updateStatusPanel();
-    checkWinCondition();
+    // 拾取本身不会产生更大的 token，这里可以不检查胜利，留着也无所谓
     return;
   }
 
-  // 放下
+  // 放下：手里有 & 格子空
   if (handHas !== null && cellHas === null) {
-    state.tokenValue = handHas;
+    setCellTokenValue(state.index, handHas);
     player.tokenInHand = null;
     updateCellMarker(state);
     updateStatusPanel();
-    checkWinCondition(state);
+    checkWinCondition(handHas);
     return;
   }
 
-  // 合成（同值合并，结果留在格子里）
+  // 合成：手里有 & 格子有 & 数值相同
   if (handHas !== null && cellHas !== null && handHas === cellHas) {
     const newValue = cellHas * 2;
-    state.tokenValue = newValue;
+    setCellTokenValue(state.index, newValue);
     player.tokenInHand = null;
     updateCellMarker(state);
     updateStatusPanel();
-    checkWinCondition(state);
+    checkWinCondition(newValue);
     return;
   }
 
   alert("Cannot interact with this cell in that way.");
 }
 
-// --- 视口驱动的格子渲染 ---
+// --- 视口驱动的格子渲染（显示层依然是重建式） ---
 
 function renderVisibleCells() {
   const bounds = map.getBounds();
@@ -255,12 +283,8 @@ function renderVisibleCells() {
       const id = cellId(cell);
       nextVisibleCellIds.add(id);
 
-      // 已经在视口里了：保留当前状态，不重新生成
+      // 已经在视口里了：保留当前可视状态
       if (currentlyVisibleCellIds.has(id)) continue;
-
-      // 新进入视口：创建新的“记忆丢失”状态
-      const tokenValue = initialTokenValueForCell(cell);
-      const state: CellState = { index: cell, tokenValue };
 
       const cellBounds = cellIndexToBounds(cell);
       const rect = leaflet.rectangle(cellBounds, {
@@ -269,7 +293,8 @@ function renderVisibleCells() {
         fillOpacity: 0,
       }).addTo(map);
 
-      state.rect = rect;
+      const state: CellState = { index: cell, rect };
+
       rect.on("click", () => handleCellClick(state));
 
       cellStateById.set(id, state);
@@ -277,7 +302,7 @@ function renderVisibleCells() {
     }
   }
 
-  // despawn：离开视口的格子 -> 移除图层 + 删除状态（memoryless）
+  // despawn：离开视口的格子 -> 移除图层，但不动 modifiedCellTokens
   for (const id of currentlyVisibleCellIds) {
     if (!nextVisibleCellIds.has(id)) {
       const state = cellStateById.get(id);
@@ -285,9 +310,7 @@ function renderVisibleCells() {
         if (state.marker) {
           map.removeLayer(state.marker);
         }
-        if (state.rect) {
-          map.removeLayer(state.rect);
-        }
+        map.removeLayer(state.rect);
         cellStateById.delete(id);
       }
     }
@@ -317,7 +340,7 @@ function movePlayerBy(deltaRow: number, deltaCol: number) {
   map.panTo([player.lat, player.lng]);
 
   updateStatusPanel();
-  // 不需要手动调用 renderVisibleCells，panTo 会触发 moveend 事件
+  // panTo 会触发 moveend -> renderVisibleCells
 }
 
 function addMoveButton(label: string, deltaRow: number, deltaCol: number) {

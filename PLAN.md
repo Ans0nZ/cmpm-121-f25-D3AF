@@ -117,35 +117,36 @@
 
 - [ ] Separate _cell coordinates_ from _cell contents_:
   - [ ] Keep using `CellIndex { row, col }` for grid coordinates.
-  - [ ] Introduce a `Map<string, number | null>` that stores only modified cell contents.
+  - [ ] Introduce a `modifiedCellTokens: Map<string, number | null>` that stores only **modified** cell contents.
 - [ ] Treat unmodified cells as “virtual”:
-  - [ ] If a cell is not in the Map, compute its token with `initialTokenValueForCell(cell)`.
+  - [ ] If a cell is not in `modifiedCellTokens`, compute its token with `initialTokenValueForCell(cell)`.
   - [ ] If a cell _is_ in the Map, use that stored value instead.
 
 ## Memento-style persistence for modified cells
 
 - [ ] Implement `getCellTokenValue(cellIndex)`:
-  - [ ] Look up `cellId` in the Map of modified cells.
+  - [ ] Compute `id = cellId(cellIndex)` and look up in `modifiedCellTokens`.
   - [ ] If found, return stored value.
   - [ ] If not found, return `initialTokenValueForCell(cellIndex)`.
 
 - [ ] Implement `setCellTokenValue(cellIndex, newValue)`:
-  - [ ] If `newValue` equals the initial value, remove the entry from the Map (no need to store).
-  - [ ] Otherwise, save it in the Map so it persists while off-screen.
+  - [ ] Compute `base = initialTokenValueForCell(cellIndex)`.
+  - [ ] If `newValue === base`, remove the entry from the Map (no need to store).
+  - [ ] Otherwise, save it in `modifiedCellTokens` so it persists while off-screen.
 
 ## Viewport rendering (rebuild-from-scratch)
 
-- [ ] Maintain a `visibleCells` Map for _only on-screen_ objects:
-  - [ ] Each entry stores `{ index, rect, marker? }`.
+- [ ] Maintain a `visibleCells: Map<string, CellState>` for _only on-screen_ objects:
+  - [ ] `CellState` stores `{ index, rect, marker? }`.
   - [ ] This Map is rebuilt whenever the map moves.
-- [ ] Implement `renderVisibleCells()`:
+- [ ] Implement / update `renderVisibleCells()`:
   - [ ] Use `map.getBounds()` to compute visible `CellIndex` range.
   - [ ] For each visible cell:
     - [ ] Create / reuse a rectangle.
     - [ ] Use `getCellTokenValue` to show correct token.
     - [ ] Attach click handlers to both rect and token marker.
   - [ ] Remove rectangles/markers for cells that are no longer visible.
-  - [ ] **Do not** clear the modified-cells Map here.
+  - [ ] **Do not** clear `modifiedCellTokens` here.
 
 ## Gameplay behavior
 
