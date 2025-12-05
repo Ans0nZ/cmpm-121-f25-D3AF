@@ -158,3 +158,64 @@
   - [x] If you change a cell, move it off-screen, then back:
     - [x] The cell remembers the modified token.
   - [x] Unchanged cells are consistent thanks to `luck(seed + cellId)` but don’t occupy memory.
+
+# D3.d: Gameplay Across Real-world Space and Time
+
+## Movement facade (buttons vs geolocation)
+
+- [ ] Introduce a `MovementController` interface (facade):
+  - [ ] `name: string`
+  - [ ] `start(): void`
+  - [ ] `stop(): void`
+
+- [ ] Implement a button-based movement controller:
+  - [ ] Internally wires the existing Move N/S/E/W buttons.
+  - [ ] On click, calls `movePlayerBy(deltaRow, deltaCol)`.
+  - [ ] Implements `start()` by attaching handlers, `stop()` by removing them.
+
+- [ ] Implement a geolocation-based movement controller:
+  - [ ] Uses `navigator.geolocation.watchPosition` to track the device position.
+  - [ ] Updates `player.lat` / `player.lng` (and calls `playerMarker.setLatLng` + `map.panTo`).
+  - [ ] Implements `start()` by calling `watchPosition`, `stop()` by calling `clearWatch`.
+
+- [ ] Add a way to choose movement mode:
+  - [ ] Read `movement` from `location.search` (e.g. `movement=geo` or `movement=buttons`), or default to buttons.
+  - [ ] Optionally, add a toggle button in the UI to switch controller at runtime by calling `stop()` on the old controller and `start()` on the new one.
+
+## Local persistence with localStorage
+
+- [ ] Define a `SavedGame` type that stores:
+  - [ ] `player.lat`, `player.lng`, `player.tokenInHand`
+  - [ ] The `modifiedCellTokens` map (from D3.c) converted to a plain object.
+  - [ ] Any extra metadata (version, timestamp) if needed.
+
+- [ ] Implement `saveGame()`:
+  - [ ] Build a `SavedGame` object from current in-memory state.
+  - [ ] Serialize it with `JSON.stringify`.
+  - [ ] Store it in `localStorage` under a fixed key, e.g. `"world-of-bits-d3-save"`.
+
+- [ ] Implement `loadGame()`:
+  - [ ] Read the JSON string from `localStorage`.
+  - [ ] Parse it and validate basic fields.
+  - [ ] Restore `player` and `modifiedCellTokens` into memory.
+  - [ ] Reposition `playerMarker` and refresh the map by calling `renderVisibleCells()` and `updateStatusPanel()`.
+
+- [ ] Call `loadGame()` on page startup:
+  - [ ] If there is a saved game, start from that state.
+  - [ ] Otherwise, start a fresh game at the classroom location.
+
+- [ ] Call `saveGame()` on important events:
+  - [ ] After every player movement.
+  - [ ] After every pick-up, placement, or combine action.
+
+## New game & sanity checks
+
+- [ ] Add a "New Game" button to the control panel:
+  - [ ] Clears the `localStorage` save key.
+  - [ ] Resets `player` and `modifiedCellTokens` to default.
+  - [ ] Re-centers the map and re-renders visible cells.
+
+- [ ] Verify D3.d behavior:
+  - [ ] Moving your device (in geolocation mode) moves the in-game character.
+  - [ ] Closing and reopening the page resumes from the same state.
+  - [ ] Switching movement mode (buttons vs geolocation) works without breaking the rest of the game.
