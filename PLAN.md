@@ -115,46 +115,46 @@
 
 ## Flyweight-style cell storage
 
-- [ ] Separate _cell coordinates_ from _cell contents_:
-  - [ ] Keep using `CellIndex { row, col }` for grid coordinates.
-  - [ ] Introduce a `modifiedCellTokens: Map<string, number | null>` that stores only **modified** cell contents.
-- [ ] Treat unmodified cells as “virtual”:
-  - [ ] If a cell is not in `modifiedCellTokens`, compute its token with `initialTokenValueForCell(cell)`.
-  - [ ] If a cell _is_ in the Map, use that stored value instead.
+- [x] Separate _cell coordinates_ from _cell contents_:
+  - [x] Keep using `CellIndex { row, col }` for grid coordinates.
+  - [x] Introduce a `modifiedCellTokens: Map<string, number | null>` that stores only **modified** cell contents.
+- [x] Treat unmodified cells as “virtual”:
+  - [x] If a cell is not in `modifiedCellTokens`, compute its token with `initialTokenValueForCell(cell)`.
+  - [x] If a cell _is_ in the Map, use that stored value instead.
 
 ## Memento-style persistence for modified cells
 
-- [ ] Implement `getCellTokenValue(cellIndex)`:
-  - [ ] Compute `id = cellId(cellIndex)` and look up in `modifiedCellTokens`.
-  - [ ] If found, return stored value.
-  - [ ] If not found, return `initialTokenValueForCell(cellIndex)`.
+- [x] Implement `getCellTokenValue(cellIndex)`:
+  - [x] Compute `id = cellId(cellIndex)` and look up in `modifiedCellTokens`.
+  - [x] If found, return stored value.
+  - [x] If not found, return `initialTokenValueForCell(cellIndex)`.
 
-- [ ] Implement `setCellTokenValue(cellIndex, newValue)`:
-  - [ ] Compute `base = initialTokenValueForCell(cellIndex)`.
-  - [ ] If `newValue === base`, remove the entry from the Map (no need to store).
-  - [ ] Otherwise, save it in `modifiedCellTokens` so it persists while off-screen.
+- [x] Implement `setCellTokenValue(cellIndex, newValue)`:
+  - [x] Compute `base = initialTokenValueForCell(cellIndex)`.
+  - [x] If `newValue === base`, remove the entry from the Map (no need to store).
+  - [x] Otherwise, save it in `modifiedCellTokens` so it persists while off-screen.
 
 ## Viewport rendering (rebuild-from-scratch)
 
-- [ ] Maintain a `visibleCells: Map<string, CellState>` for _only on-screen_ objects:
-  - [ ] `CellState` stores `{ index, rect, marker? }`.
-  - [ ] This Map is rebuilt whenever the map moves.
-- [ ] Implement / update `renderVisibleCells()`:
-  - [ ] Use `map.getBounds()` to compute visible `CellIndex` range.
-  - [ ] For each visible cell:
-    - [ ] Create / reuse a rectangle.
-    - [ ] Use `getCellTokenValue` to show correct token.
-    - [ ] Attach click handlers to both rect and token marker.
-  - [ ] Remove rectangles/markers for cells that are no longer visible.
-  - [ ] **Do not** clear `modifiedCellTokens` here.
+- [x] Maintain a `visibleCells: Map<string, CellState>` for _only on-screen_ objects:
+  - [x] `CellState` stores `{ index, rect, marker? }`.
+  - [x] This Map is rebuilt whenever the map moves.
+- [x] Implement / update `renderVisibleCells()`:
+  - [x] Use `map.getBounds()` to compute visible `CellIndex` range.
+  - [x] For each visible cell:
+    - [x] Create / reuse a rectangle.
+    - [x] Use `getCellTokenValue` to show correct token.
+    - [x] Attach click handlers to both rect and token marker.
+  - [x] Remove rectangles/markers for cells that are no longer visible.
+  - [x] **Do not** clear `modifiedCellTokens` here.
 
 ## Gameplay behavior
 
-- [ ] When the player picks up, places, or combines tokens:
-  - [ ] Use `getCellTokenValue` to read.
-  - [ ] Use `setCellTokenValue` to write.
-  - [ ] Refresh the corresponding visible cell’s marker.
-- [ ] Verify behavior:
-  - [ ] If you change a cell, move it off-screen, then back:
-    - [ ] The cell remembers the modified token.
-  - [ ] Unchanged cells are consistent thanks to `luck(seed + cellId)` but don’t occupy memory.
+- [x] When the player picks up, places, or combines tokens:
+  - [x] Use `getCellTokenValue` to read.
+  - [x] Use `setCellTokenValue` to write.
+  - [x] Refresh the corresponding visible cell’s marker.
+- [x] Verify behavior:
+  - [x] If you change a cell, move it off-screen, then back:
+    - [x] The cell remembers the modified token.
+  - [x] Unchanged cells are consistent thanks to `luck(seed + cellId)` but don’t occupy memory.
