@@ -343,18 +343,50 @@ function movePlayerBy(deltaRow: number, deltaCol: number) {
   // panTo 会触发 moveend -> renderVisibleCells
 }
 
-function addMoveButton(label: string, deltaRow: number, deltaCol: number) {
-  const btn = document.createElement("button");
-  btn.textContent = label;
-  btn.addEventListener("click", () => movePlayerBy(deltaRow, deltaCol));
-  moveButtonsDiv.append(btn);
+// --- MovementDriver 接口 + 按钮实现（D3.d：Facade） ---
+
+type MovementDriver = {
+  start(): void;
+  stop(): void;
+};
+
+class ButtonMovementDriver implements MovementDriver {
+  constructor(private readonly container: HTMLElement) {}
+
+  private buttons: HTMLButtonElement[] = [];
+  private active = false;
+
+  start(): void {
+    if (this.active) return;
+    this.active = true;
+
+    this.createButton("Move N", +1, 0); // row+1 (纬度增大)
+    this.createButton("Move S", -1, 0); // row-1
+    this.createButton("Move E", 0, +1); // col+1 (经度增大)
+    this.createButton("Move W", 0, -1); // col-1
+  }
+
+  stop(): void {
+    if (!this.active) return;
+    this.active = false;
+
+    for (const btn of this.buttons) {
+      this.container.removeChild(btn);
+    }
+    this.buttons = [];
+  }
+
+  private createButton(label: string, deltaRow: number, deltaCol: number) {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.addEventListener("click", () => movePlayerBy(deltaRow, deltaCol));
+    this.container.append(btn);
+    this.buttons.push(btn);
+  }
 }
 
-// N: row+1 (纬度增大)
-addMoveButton("Move N", +1, 0);
-// S: row-1
-addMoveButton("Move S", -1, 0);
-// E: col+1 (经度增大)
-addMoveButton("Move E", 0, +1);
-// W: col-1
-addMoveButton("Move W", 0, -1);
+// 当前使用的移动驱动（先只用按钮版，之后会加入 geolocation 版）
+const movementDriver: MovementDriver = new ButtonMovementDriver(
+  moveButtonsDiv,
+);
+movementDriver.start();
