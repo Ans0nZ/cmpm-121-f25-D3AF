@@ -171,10 +171,10 @@
 
 ## Geolocation-based movement
 
-- [ ] Implement `GeolocationMovementDriver` that:
-  - [ ] Uses `navigator.geolocation.watchPosition` to track the player.
-  - [ ] Converts real-world lat/lng changes into grid steps and calls `movePlayerBy`.
-  - [ ] Stops watching in `stop()`.
+- [x] Implement `GeolocationMovementDriver` that:
+  - [x] Uses `navigator.geolocation.watchPosition` to track the player.
+  - [x] Converts real-world lat/lng changes into grid steps and calls `movePlayerBy`.
+  - [x] Stops watching in `stop()`.
 
 ## Movement mode switching
 

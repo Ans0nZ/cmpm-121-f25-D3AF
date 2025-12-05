@@ -9,7 +9,7 @@ import "./style.css";
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
-controlPanelDiv.textContent = "World of Bits – D3.c (persistence)";
+controlPanelDiv.textContent = "World of Bits – D3.c (persistence + facade)";
 document.body.append(controlPanelDiv);
 
 const mapDiv = document.createElement("div");
@@ -234,7 +234,6 @@ function handleCellClick(state: CellState) {
     setCellTokenValue(state.index, null);
     updateCellMarker(state);
     updateStatusPanel();
-    // 拾取本身不会产生更大的 token，这里可以不检查胜利，留着也无所谓
     return;
   }
 
@@ -328,7 +327,7 @@ map.on("moveend", () => {
   renderVisibleCells();
 });
 
-// --- 玩家移动按钮（按格子步长移动） ---
+// --- 玩家移动（按格子步长）---
 
 function movePlayerBy(deltaRow: number, deltaCol: number) {
   // row 增加 -> 纬度增加；col 增加 -> 经度增加
@@ -343,7 +342,7 @@ function movePlayerBy(deltaRow: number, deltaCol: number) {
   // panTo 会触发 moveend -> renderVisibleCells
 }
 
-// --- MovementDriver 接口 + 按钮实现（D3.d：Facade） ---
+// --- MovementDriver 接口 + 按钮 / 定位实现（D3.d：Facade） ---
 
 type MovementDriver = {
   start(): void;
@@ -385,7 +384,74 @@ class ButtonMovementDriver implements MovementDriver {
   }
 }
 
-// 当前使用的移动驱动（先只用按钮版，之后会加入 geolocation 版）
+// 🚶‍♂️ GeolocationMovementDriver：用真实世界位置驱动玩家移动
+class GeolocationMovementDriver implements MovementDriver {
+  private watchId: number | null = null;
+  private lastIndex: CellIndex | null = null;
+  private active = false;
+
+  start(): void {
+    if (this.active) return;
+    this.active = true;
+
+    if (!("geolocation" in navigator)) {
+      alert("Geolocation is not supported in this browser.");
+      this.active = false;
+      return;
+    }
+
+    this.watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!this.active) return;
+
+        const { latitude, longitude } = position.coords;
+        const currentIndex = _latLngToCellIndex(latitude, longitude);
+
+        if (this.lastIndex === null) {
+          // 第一次定位：把玩家“对齐”到当前 real-world cell
+          const playerIndex = _latLngToCellIndex(player.lat, player.lng);
+          const deltaRow = currentIndex.row - playerIndex.row;
+          const deltaCol = currentIndex.col - playerIndex.col;
+          if (deltaRow !== 0 || deltaCol !== 0) {
+            movePlayerBy(deltaRow, deltaCol);
+          }
+          this.lastIndex = currentIndex;
+          return;
+        }
+
+        const deltaRow = currentIndex.row - this.lastIndex.row;
+        const deltaCol = currentIndex.col - this.lastIndex.col;
+
+        if (deltaRow !== 0 || deltaCol !== 0) {
+          movePlayerBy(deltaRow, deltaCol);
+          this.lastIndex = currentIndex;
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        alert(`Geolocation error: ${error.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 10000,
+      },
+    );
+  }
+
+  stop(): void {
+    if (!this.active) return;
+    this.active = false;
+
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    this.lastIndex = null;
+  }
+}
+
+// 现在先继续用“按钮驱动版”，下一步再做模式切换
 const movementDriver: MovementDriver = new ButtonMovementDriver(
   moveButtonsDiv,
 );
