@@ -163,11 +163,11 @@
 
 ## Movement facade
 
-- [ ] Define a `MovementDriver` interface with `start()` and `stop()` methods.
-- [ ] Implement `ButtonMovementDriver` that:
-  - [ ] Creates the N/S/E/W buttons in a given container.
-  - [ ] Calls the shared `movePlayerBy(deltaRow, deltaCol)` function.
-  - [ ] Cleans up its buttons in `stop()`.
+- [x] Define a `MovementDriver` interface with `start()` and `stop()` methods.
+- [x] Implement `ButtonMovementDriver` that:
+  - [x] Creates the N/S/E/W buttons in a given container.
+  - [x] Calls the shared `movePlayerBy(deltaRow, deltaCol)` function.
+  - [x] Cleans up its buttons in `stop()`.
 
 ## Geolocation-based movement
 
